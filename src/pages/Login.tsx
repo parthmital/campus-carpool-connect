@@ -74,7 +74,7 @@ export default function Login() {
 						)}
 					</Button>
 					<p className="text-xs text-center text-muted-foreground mt-4">
-						Only @college.edu emails are allowed
+						Only @vitstudent.ac.in emails are allowed
 					</p>
 				</CardContent>
 			</Card>
