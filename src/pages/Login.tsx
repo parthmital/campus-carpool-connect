@@ -49,7 +49,7 @@ export default function Login() {
 							<Car className="h-6 w-6 text-primary" />
 						</div>
 					</div>
-					<CardTitle className="text-xl">CampusRide</CardTitle>
+					<CardTitle className="text-xl">VIT Carpool</CardTitle>
 					<CardDescription>
 						Sign in with your college email to find or offer rides
 					</CardDescription>
