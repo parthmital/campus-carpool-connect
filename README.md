@@ -1,180 +1,92 @@
 ## VIT Carpool
 
-VIT Carpool is a campus-focused carpooling web app for VIT students. It lets students sign in with their college email, create rides, join available rides, and coordinate logistics via WhatsApp.
+This is a web application designed for carpooling, specifically for the students of Vellore Institute of Technology, Vellore. It allows users to create, join, and manage rides.
 
-The app is built with **React + TypeScript**, **Vite**, **Supabase** (auth + database + RLS), **React Router**, **TanStack Query**, and **shadcn/ui** (Radix-based UI components).
+## Tech Stack
 
----
+**Frontend:**
 
-### Features
+- **React:** A JavaScript library for building user interfaces.
+- **Vite:** A fast build tool for modern web projects.
+- **TypeScript:** A superset of JavaScript that adds static typing.
+- **Shadcn UI:** A collection of reusable components for building beautiful user interfaces.
+- **Tailwind CSS:** A utility-first CSS framework for rapidly styling applications.
+- **React Router DOM:** For declarative routing in React applications.
+- **@tanstack/react-query:** For data fetching, caching, and state management.
+- **Zod, React Hook Form, @hookform/resolvers:** For form validation.
+- **Date-fns, React Day Picker:** For date and time manipulation and selection.
+- **Lucide React:** For icons.
+- **Sonner:** For toasts/notifications.
+- **Embla Carousel React:** For carousels.
+- **Recharts:** For charts.
+- **Class Variance Authority (cva), clsx, tailwind-merge:** For managing CSS classes and variants.
 
-- **College-only authentication**
-  - Google OAuth via Supabase
-  - **Only `@vitstudent.ac.in` emails** are allowed (enforced in `AuthContext`)
-- **Ride discovery**
-  - Filter by **source**, **destination**, **date**, and **time window**
-  - Excludes rides with `0` seats remaining
-  - Live count of matching rides
-- **Create and manage rides**
-  - Create a ride with:
-    - Source & destination (predefined campus-related locations)
-    - Date and start/end time
-    - Available seats (validated: 1–10 on create, 0–10 on edit)
-  - View and manage all rides you created
-  - Edit or delete your own rides
-- **Join and leave rides**
-  - Join rides (with seat availability check)
-  - Leave rides you previously joined
-  - Automatically decrements/increments seat counts in a transaction-like flow
-- **WhatsApp-based coordination**
-  - Users are prompted to add a WhatsApp number once, stored in their profile
-  - Riders who joined a ride can:
-    - Open WhatsApp chat with a pre-filled message
-    - Copy driver’s WhatsApp number to the clipboard
-- **Real-time data**
-  - Supabase Realtime subscription on `rides` table
-  - Automatically refreshes ride list when rides are inserted/updated/deleted
-- **Access control**
-  - All main pages use `AppLayout`, which:
-    - Redirects unauthenticated users to `/login`
-    - Prompts authenticated users without WhatsApp to add a number
-  - Supabase Row Level Security (RLS) policies enforce:
-    - Users can only update/delete their own rides
-    - Users can only modify their own profiles and ride participation
-- **Responsive UI**
-  - Uses Tailwind CSS + shadcn/ui components (buttons, cards, inputs, dialogs, dropdowns, etc.)
-  - Mobile-friendly layout with sticky top navbar
+**Backend:**
 
----
+- **Supabase:** A "Firebase alternative" providing:
+  - **PostgreSQL Database:** For data storage (indicated by `supabase-schema.sql`).
+  - **Authentication:** For user management (`@supabase/supabase-js`, `src/contexts/AuthContext.tsx`).
+  - **Realtime Database:** Potentially used for real-time updates on ride availability or chat.
 
-### Tech Stack
+**Development Tools:**
 
-- **Frontend**
-  - React 18 + TypeScript
-  - Vite
-  - React Router v6
-  - TanStack React Query
-  - Tailwind CSS + tailwindcss-animate
-  - shadcn/ui (Radix UI primitives)
-  - lucide-react icons
-- **Backend**
-  - Supabase
-    - Auth (Google OAuth)
-    - Postgres database
-    - Realtime channels
-    - Row Level Security policies
-- **Tooling**
-  - ESLint
-  - TypeScript
-  - Vite Dev Server (port `8080`)
-  - Vercel (SPA rewrite config)
+- **ESLint, Prettier:** For code linting and formatting.
+- **TypeScript:** For type checking.
 
----
+## Features
 
-### Routes (defined in `App.tsx`)
+**User Management & Authentication:**
 
-- `/login` – Sign in with Google; only `@vitstudent.ac.in` emails accepted.
-- `/` – **Home**
-  - Shows search form and ride list.
-  - Filters by source, destination, date, and time window.
-  - Uses `RidesContext` to read `rides` and loading state.
-- `/create` – **Create Ride**
-  - Validates form inputs.
-  - Creates a ride row in `rides` table via `RidesContext.createRide`.
-- `/manage` – **Manage Rides**
-  - Shows rides created by the logged-in user.
-  - Allows viewing, editing, and deleting rides.
-- `/joined` – **Joined Rides**
-  - Shows rides that the user has joined.
-  - Allows leaving a ride.
-- `/ride/:id` – **Ride Detail**
-  - Shows full details of a ride.
-  - Allows:
-    - Joining the ride (if seats available and user not creator).
-    - Leaving the ride (if joined).
-    - Editing/deleting (if user is the creator).
-    - Contacting driver on WhatsApp (for joined riders, not the creator).
-- `/ride/:id/edit` – **Edit Ride**
-  - Only accessible by ride creator.
-  - Validates updates and persists via `RidesContext.updateRide`.
-- `*` – **NotFound**
-  - Handles any unknown routes.
+- User login and registration (`src/pages/Login.tsx`, `src/contexts/AuthContext.tsx`).
+- Session management.
 
----
+**Ride Management:**
 
-### State Management & Data Layer
+- **Create Ride:** Users can create new ride offerings (`src/pages/CreateRide.tsx`).
+  - Includes selecting origin, destination, date, time, and available seats.
+- **Search for Rides:** Users can search for available rides (`src/components/rides/SearchForm.tsx`).
+  - Location selection (`src/components/rides/LocationSelect.tsx`).
+- **View Ride Details:** Detailed view of a specific ride (`src/pages/RideDetail.tsx`).
+- **Join/Book Rides:** Users can join existing rides.
+- **Manage Own Rides:** Users can view and manage the rides they have created (`src/pages/ManageRides.tsx`).
+  - Edit ride details (`src/pages/EditRide.tsx`).
+- **View Joined Rides:** Users can see a list of rides they have joined (`src/pages/JoinedRides.tsx`).
+- **Ride Card Component:** A reusable component to display ride information (`src/components/rides/RideCard.tsx`).
 
-#### Auth (`AuthContext`)
+**User Interface & Experience:**
 
-- Wraps the app with `AuthProvider`.
-- Uses Supabase auth:
-  - On initial load, calls `supabase.auth.getSession()`.
-  - Subscribes to `onAuthStateChange` for `SIGNED_IN`, `SIGNED_OUT`, `TOKEN_REFRESHED`.
-- For each authenticated session:
-  - Validates email domain (`vitstudent.ac.in` only).
-  - Loads or creates a `user_profiles` row.
-  - Maps DB profile to internal `User` type:
-    - `id`, `name`, `email`, `photoUrl`, `whatsApp`.
-- Exposes:
-  - `user`
-  - `isAuthenticated`
-  - `isLoading`
-  - `needsWhatsApp` (true if logged in but no WhatsApp)
-  - `login()` – starts Google OAuth.
-  - `logout()` – signs out via Supabase.
-  - `setWhatsApp()` – updates WhatsApp in `user_profiles`.
+- Responsive design (indicated by Shadcn UI and Tailwind CSS).
+- Navigation bar (`src/components/layout/Navbar.tsx`).
+- Layout components (`src/components/layout/AppLayout.tsx`).
+- Toast notifications for user feedback (`src/components/ui/toast.tsx`, `src/hooks/use-toast.ts`).
+- Various UI components from Shadcn UI (buttons, forms, dialogs, etc.).
+- WhatsApp integration: `src/components/WhatsAppPrompt.tsx` suggests a feature for contacting ride participants or organizers via WhatsApp.
 
-#### Rides (`RidesContext`)
+**Data & State Management:**
 
-- Manages:
-  - `rides: Ride[]`
-  - `joinedRides: Set<string>` (ride IDs)
-  - `isLoading`, `error`
-  - `realtimeStatus` (channel subscription status)
-- Functions:
-  - `createRide(rideData)`
-  - `joinRide(rideId)`
-    - Inserts into `ride_participants`.
-    - Decrements `seats_available` in `rides`.
-    - Rollbacks participation if seat update fails.
-  - `leaveRide(rideId)`
-    - Deletes from `ride_participants`.
-    - Increments `seats_available` in `rides`.
-    - Rollbacks if seat update fails.
-  - `deleteRide(rideId)`
-  - `updateRide(rideId, patch)`
-  - `getMyRides()`
-  - `getJoinedRides()`
-  - `getRideById(id)`
-  - `searchRides(filters)`
-  - `hasJoinedRide(rideId)`
-  - `isMyRide(rideId)`
-  - `reload()` – reload rides and joined rides.
-- Real-time:
-  - Subscribes to a Supabase channel (`rides-changes`) with `postgres_changes` on `rides`.
-  - On any change, calls `loadRides()` to refresh local state.
+- Global state management for authentication (`src/contexts/AuthContext.tsx`).
+- Global state management for rides data (`src/contexts/RidesContext.tsx`).
+- Data fetching and caching with React Query.
 
----
+## Project Structure
 
-### UI Components
-
-- **`components/layout/AppLayout.tsx`**
-  - Central layout wrapper.
-  - Gatekeeps authenticated access and WhatsApp requirement.
-- **`components/layout/Navbar.tsx`**
-  - Brand/logo.
-  - "Create Ride" button.
-  - Account dropdown:
-    - Manage rides
-    - Joined rides
-    - Edit WhatsApp (dialog)
-    - Logout
-- **`components/WhatsAppPrompt.tsx`**
-  - Modal dialog when `needsWhatsApp` is true.
-  - Validates phone number (digits only, 10–15).
-  - Calls `onSubmit` with a cleaned phone number (digits only).
-- **`components/rides/LocationSelect.tsx`, `SearchForm.tsx`, `RideCard.tsx`**
-  - Encapsulate ride-specific UI:
-    - Pre-defined locations
-    - Validation & error display
-    - Card layout for ride display on Home page and list pages.
+- `public/`: Static assets (favicon, images, sitemap, robots.txt).
+- `src/`: Main application source code.
+  - `src/App.tsx`: Main application component.
+  - `src/main.tsx`: Entry point of the React application.
+  - `src/components/`: Reusable React components.
+    - `src/components/layout/`: Layout-specific components.
+    - `src/components/rides/`: Components related to ride functionality.
+    - `src/components/ui/`: Shadcn UI components.
+  - `src/contexts/`: React Context API for global state management.
+  - `src/hooks/`: Custom React hooks.
+  - `src/lib/`: Utility functions and Supabase client initialization (`src/lib/supabase.ts`, `src/lib/utils.ts`).
+  - `src/pages/`: Page-level components (routes).
+  - `src/types/`: TypeScript type definitions (`src/types/ride.ts`).
+  - `src/App.css`, `src/index.css`: Styling files.
+- `supabase-schema.sql`: Database schema for Supabase.
+- `tailwind.config.ts`, `postcss.config.js`: Tailwind CSS configuration.
+- `vite.config.ts`: Vite build configuration.
+- `tsconfig.json`: TypeScript configuration.
+- `package.json`: Project dependencies and scripts.
+- `vercel.json`: Vercel deployment configuration.
