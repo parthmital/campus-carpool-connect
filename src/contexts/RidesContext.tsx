@@ -168,7 +168,8 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "rides" },
-				() => {
+				(payload) => {
+					console.log("Realtime rides event received:", payload);
 					loadRides();
 				},
 			)
@@ -240,10 +241,16 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 					return false;
 				}
 
+				console.log(`Attempting to join ride ${rideId}. Current seats: ${ride.seatsAvailable}. New seats: ${ride.seatsAvailable - 1}`);
 				const { error: updateError } = await supabase
 					.from("rides")
 					.update({ seats_available: ride.seatsAvailable - 1 })
 					.eq("id", rideId);
+				if (updateError) {
+					console.error("Supabase update error during join:", updateError);
+				} else {
+					console.log("Supabase update successful during join.");
+				}
 
 				if (updateError) {
 					console.error("Error updating seats:", updateError);
@@ -294,10 +301,16 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 					return false;
 				}
 
+				console.log(`Attempting to leave ride ${rideId}. Current seats: ${ride.seatsAvailable}. New seats: ${ride.seatsAvailable + 1}`);
 				const { error: updErr } = await supabase
 					.from("rides")
 					.update({ seats_available: ride.seatsAvailable + 1 })
 					.eq("id", rideId);
+				if (updErr) {
+					console.error("Supabase update error during leave:", updErr);
+				} else {
+					console.log("Supabase update successful during leave.");
+				}
 
 				if (updErr) {
 					console.error("Error restoring seat count:", updErr);
