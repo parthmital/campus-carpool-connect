@@ -36,7 +36,6 @@ type RideEditablePatch = Partial<
 
 type CreateRideInput = Omit<Ride, "id" | "createdAt" | "seatsAvailable"> & {
 	totalSeats: number;
-	seatsAvailable: number;
 };
 
 interface RidesContextType {
@@ -163,7 +162,7 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			const totalSeats =
 				typeof ride.totalSeats === "number" && ride.totalSeats > 0
 					? ride.totalSeats
-					: ride.seatsAvailable;
+					: 1;
 
 			const { error } = await supabase.from("rides").insert({
 				source: ride.source,
@@ -171,10 +170,8 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 				date: ride.date,
 				start_time: ride.startTime,
 				end_time: ride.endTime,
-
 				total_seats: totalSeats,
 				seats_available: totalSeats,
-
 				creator_id: user.id,
 				creator_name: ride.creatorName,
 				creator_email: ride.creatorEmail,
@@ -192,6 +189,9 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 		async (rideId: string) => {
 			if (!user) throw new Error("Auth required");
 
+			const ride = rides.find((r) => r.id === rideId);
+			if (ride && ride.creatorId === user.id) return false;
+
 			const { data, error } = await supabase.rpc("join_ride_transaction", {
 				p_ride_id: rideId,
 				p_user_id: user.id,
@@ -202,12 +202,15 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			await reload();
 			return true;
 		},
-		[user, reload]
+		[user, rides, reload]
 	);
 
 	const leaveRide = useCallback(
 		async (rideId: string) => {
 			if (!user) throw new Error("Auth required");
+
+			const ride = rides.find((r) => r.id === rideId);
+			if (ride && ride.creatorId === user.id) return false;
 
 			const { data, error } = await supabase.rpc("leave_ride_transaction", {
 				p_ride_id: rideId,
@@ -219,7 +222,7 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			await reload();
 			return true;
 		},
-		[user, reload]
+		[user, rides, reload]
 	);
 
 	const deleteRide = useCallback(
