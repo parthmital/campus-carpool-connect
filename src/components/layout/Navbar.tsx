@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,26 +89,37 @@ export function Navbar() {
 
 							<DropdownMenuContent
 								align="end"
-								className="bg-background border-border"
+								className="border-border bg-background"
 							>
-								<DropdownMenuItem onClick={() => navigate("/manage")}>
-									<List className="h-4 w-4 mr-2" />
+								<DropdownMenuItem
+									onClick={() => {
+										if (!user) return navigate("/login");
+										navigate("/manage");
+									}}
+								>
+									<List className="mr-2 h-4 w-4" />
 									Manage rides
 								</DropdownMenuItem>
 
-								<DropdownMenuItem onClick={() => navigate("/joined")}>
-									<Users2 className="h-4 w-4 mr-2" />
+								<DropdownMenuItem
+									onClick={() => {
+										if (!user) return navigate("/login");
+										navigate("/joined");
+									}}
+								>
+									<Users2 className="mr-2 h-4 w-4" />
 									Joined rides
 								</DropdownMenuItem>
 
 								<DropdownMenuItem
 									onClick={() => {
-										setNewWhatsApp(user?.whatsApp || "");
+										if (!user) return navigate("/login");
+										setNewWhatsApp(user.whatsApp || "");
 										setError("");
 										setEditWhatsAppOpen(true);
 									}}
 								>
-									<Phone className="h-4 w-4 mr-2" />
+									<Phone className="mr-2 h-4 w-4" />
 									Edit WhatsApp
 								</DropdownMenuItem>
 
@@ -117,7 +129,7 @@ export function Navbar() {
 									onClick={handleLogout}
 									className="text-destructive"
 								>
-									<LogOut className="h-4 w-4 mr-2" />
+									<LogOut className="mr-2 h-4 w-4" />
 									Logout
 								</DropdownMenuItem>
 							</DropdownMenuContent>
@@ -152,7 +164,7 @@ export function Navbar() {
 							{error && <p className="text-xs text-destructive">{error}</p>}
 						</div>
 
-						<div className="flex gap-2 justify-end">
+						<div className="flex justify-end gap-2">
 							<Button
 								type="button"
 								variant="outline"

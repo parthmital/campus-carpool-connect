@@ -54,6 +54,13 @@ export default function JoinedRides() {
 					<Card>
 						<CardContent className="py-8 text-center">
 							<p className="text-muted-foreground">No joined rides yet.</p>
+							<Button
+								className="mt-3"
+								variant="outline"
+								onClick={() => navigate("/")}
+							>
+								Browse rides
+							</Button>
 						</CardContent>
 					</Card>
 				) : (
