@@ -23,24 +23,18 @@ import {
 	LogOut,
 	Pencil,
 } from "lucide-react";
-
 export default function RideDetail() {
 	const { id } = useParams<{ id: string }>();
 	const rideId = id || "";
 	const navigate = useNavigate();
 	const { toast } = useToast();
-
+	const { user } = useAuth();
 	const { getRideById, joinRide, leaveRide, hasJoinedRide, deleteRide } =
 		useRides();
-	const { user } = useAuth();
-
-	const [justJoined, setJustJoined] = useState(false);
+	const [loading, setLoading] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [isLeaving, setIsLeaving] = useState(false);
-
 	const ride = getRideById(rideId);
-	const hasJoined = hasJoinedRide(rideId) || justJoined;
-
+	const joined = hasJoinedRide(rideId);
 	if (!ride) {
 		return (
 			<AppLayout>
@@ -57,78 +51,52 @@ export default function RideDetail() {
 			</AppLayout>
 		);
 	}
-
 	const formattedDate = format(new Date(ride.date), "EEEE, MMMM d, yyyy");
 	const timeWindow = `${ride.startTime} - ${ride.endTime}`;
 	const isCreator = ride.creatorId === user?.id;
-	const canJoin = ride.seatsAvailable > 0 && !isCreator && !hasJoined;
-
-	const handleJoin = async () => {
+	const canJoin = ride.seatsAvailable > 0 && !isCreator && !joined;
+	const handleJoinLeave = async () => {
+		if (!user) return alert("You must be logged in to join a ride");
+		setLoading(true);
 		try {
-			const success = await joinRide(ride.id);
-			if (success) {
-				setJustJoined(true);
-				toast({
-					title: "Joined ride!",
-					description: "You can now contact the driver via WhatsApp.",
-				});
-			} else {
-				toast({
-					title: "Could not join",
-					description: "This ride may be full. Please try again.",
-					variant: "destructive",
-				});
-			}
-		} catch (error) {
-			console.error("Error joining ride:", error);
-			toast({
-				title: "Error",
-				description: "Failed to join ride. Please try again.",
-				variant: "destructive",
-			});
-		}
-	};
-
-	const handleLeave = async () => {
-		const ok = window.confirm("Leave this ride?");
-		if (!ok) return;
-
-		try {
-			setIsLeaving(true);
-			const success = await leaveRide(ride.id);
-			if (success) {
-				setJustJoined(false);
+			if (joined) {
+				await leaveRide(ride.id);
 				toast({ title: "Left ride", description: "You have left this ride." });
 			} else {
-				toast({
-					title: "Could not leave",
-					description: "Please try again.",
-					variant: "destructive",
-				});
+				const success = await joinRide(ride.id);
+				if (success) {
+					toast({
+						title: "Joined ride",
+						description: "You can now contact the driver via WhatsApp.",
+					});
+				} else {
+					toast({
+						title: "Could not join",
+						description: "This ride may be full. Please try again.",
+						variant: "destructive",
+					});
+				}
 			}
 		} catch (e) {
-			console.error("Leave failed:", e);
+			console.error(e);
 			toast({
 				title: "Error",
-				description: "Failed to leave ride. Please try again.",
+				description: "Failed. Please try again.",
 				variant: "destructive",
 			});
 		} finally {
-			setIsLeaving(false);
+			setLoading(false);
 		}
 	};
-
 	const handleDelete = async () => {
-		const ok = window.confirm("Delete this ride? This cannot be undone.");
-		if (!ok) return;
-
+		if (!window.confirm("Delete this ride? This cannot be undone.")) return;
+		setIsDeleting(true);
 		try {
-			setIsDeleting(true);
 			await deleteRide(ride.id);
 			toast({ title: "Ride deleted", description: "Your ride was removed." });
 			navigate("/");
 		} catch (e: any) {
-			console.error("Delete failed:", e);
+			console.error(e);
 			toast({
 				title: "Delete failed",
 				description: e?.message ?? "Could not delete ride",
@@ -138,7 +106,6 @@ export default function RideDetail() {
 			setIsDeleting(false);
 		}
 	};
-
 	const copyWhatsApp = () => {
 		navigator.clipboard.writeText(ride.creatorWhatsApp);
 		toast({
@@ -146,17 +113,15 @@ export default function RideDetail() {
 			description: "WhatsApp number copied to clipboard.",
 		});
 	};
-
 	const openWhatsApp = () => {
 		const message = encodeURIComponent(
-			`Hi! I joined your ride from ${ride.source} to ${ride.destination} on ${formattedDate}.`,
+			`Hi! I joined your ride from ${ride.source} to ${ride.destination} on ${formattedDate}.`
 		);
 		window.open(
 			`https://wa.me/${ride.creatorWhatsApp}?text=${message}`,
-			"_blank",
+			"_blank"
 		);
 	};
-
 	return (
 		<AppLayout>
 			<div className="max-w-2xl mx-auto space-y-4">
@@ -169,13 +134,11 @@ export default function RideDetail() {
 					<ArrowLeft className="h-4 w-4 mr-1" />
 					Back to rides
 				</Button>
-
 				<Card className="animate-fade-in">
 					<CardHeader className="pb-4">
 						<div className="flex items-start justify-between gap-4">
 							<CardTitle className="text-lg">Ride Details</CardTitle>
-
-							<div className="flex gap-2">
+							<div className="flex gap-2 items-center">
 								{isCreator && (
 									<Button
 										variant="outline"
@@ -186,7 +149,6 @@ export default function RideDetail() {
 										Edit
 									</Button>
 								)}
-
 								<div
 									className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
 										ride.seatsAvailable > 0
@@ -201,16 +163,14 @@ export default function RideDetail() {
 							</div>
 						</div>
 					</CardHeader>
-
 					<CardContent className="space-y-6">
-						{/* Route */}
+						{}
 						<div className="flex items-start gap-4">
 							<div className="flex flex-col items-center gap-1 pt-1">
 								<div className="h-3 w-3 rounded-full bg-primary" />
 								<div className="w-0.5 h-8 bg-border" />
 								<div className="h-3 w-3 rounded-full bg-success" />
 							</div>
-
 							<div className="flex-1 space-y-4">
 								<div>
 									<p className="text-xs text-muted-foreground uppercase tracking-wide">
@@ -228,10 +188,8 @@ export default function RideDetail() {
 								</div>
 							</div>
 						</div>
-
 						<Separator />
-
-						{/* Date & Time */}
+						{}
 						<div className="grid grid-cols-2 gap-4">
 							<div className="flex items-start gap-3">
 								<Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -242,7 +200,6 @@ export default function RideDetail() {
 									<p className="font-medium text-foreground">{formattedDate}</p>
 								</div>
 							</div>
-
 							<div className="flex items-start gap-3">
 								<Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
 								<div>
@@ -253,10 +210,8 @@ export default function RideDetail() {
 								</div>
 							</div>
 						</div>
-
 						<Separator />
-
-						{/* Driver */}
+						{}
 						<div className="flex items-start gap-3">
 							<UserIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
 							<div>
@@ -271,8 +226,7 @@ export default function RideDetail() {
 								</p>
 							</div>
 						</div>
-
-						{/* Join / Joined / Leave / Delete */}
+						{}
 						<div className="pt-2 space-y-2">
 							{isCreator ? (
 								<div className="space-y-2">
@@ -280,7 +234,6 @@ export default function RideDetail() {
 										<CheckCircle className="h-4 w-4" />
 										This is your ride
 									</div>
-
 									<Button
 										variant="destructive"
 										className="w-full"
@@ -291,38 +244,28 @@ export default function RideDetail() {
 										{isDeleting ? "Deleting..." : "Delete ride"}
 									</Button>
 								</div>
-							) : hasJoined ? (
-								<div className="space-y-2">
-									<div className="flex items-center gap-2 text-sm text-success bg-success/10 rounded-lg p-3">
-										<CheckCircle className="h-4 w-4" />
-										You have joined this ride
-									</div>
-
-									<Button
-										variant="outline"
-										className="w-full"
-										onClick={handleLeave}
-										disabled={isLeaving}
-									>
-										<LogOut className="h-4 w-4 mr-2" />
-										{isLeaving ? "Leaving..." : "Leave ride"}
-									</Button>
-								</div>
 							) : (
 								<Button
-									onClick={handleJoin}
-									disabled={!canJoin}
+									onClick={handleJoinLeave}
+									disabled={(!canJoin && !joined) || loading}
 									className="w-full"
 									size="lg"
+									variant={joined ? "destructive" : "default"}
 								>
-									{ride.seatsAvailable > 0 ? "Join This Ride" : "Ride is Full"}
+									{loading
+										? joined
+											? "Leaving..."
+											: "Joining..."
+										: joined
+										? "Leave Ride"
+										: "Join This Ride"}
 								</Button>
 							)}
 						</div>
 					</CardContent>
 				</Card>
-
-				{hasJoined && !isCreator && (
+				{}
+				{joined && !isCreator && (
 					<Card className="animate-fade-in border-success/30 bg-success/5">
 						<CardHeader className="pb-3">
 							<CardTitle className="text-base flex items-center gap-2 text-success">
@@ -330,12 +273,10 @@ export default function RideDetail() {
 								Contact Driver
 							</CardTitle>
 						</CardHeader>
-
 						<CardContent className="space-y-4">
 							<p className="text-sm text-muted-foreground">
 								Coordinate pickup details directly with the driver on WhatsApp.
 							</p>
-
 							<div className="flex flex-col sm:flex-row gap-2">
 								<Button
 									onClick={openWhatsApp}
@@ -344,7 +285,6 @@ export default function RideDetail() {
 									<ExternalLink className="h-4 w-4 mr-2" />
 									Chat on WhatsApp
 								</Button>
-
 								<Button
 									variant="outline"
 									onClick={copyWhatsApp}

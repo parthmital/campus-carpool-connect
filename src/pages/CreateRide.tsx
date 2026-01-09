@@ -16,7 +16,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRides } from "@/contexts/RidesContext";
 import { LocationSelect } from "@/components/rides/LocationSelect";
 import { Car, Loader2 } from "lucide-react";
-
 interface FormData {
 	source: string;
 	destination: string;
@@ -25,7 +24,6 @@ interface FormData {
 	endTime: string;
 	seatsAvailable: string;
 }
-
 interface FormErrors {
 	source?: string;
 	destination?: string;
@@ -34,14 +32,12 @@ interface FormErrors {
 	endTime?: string;
 	seatsAvailable?: string;
 }
-
 export default function CreateRide() {
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const { user } = useAuth();
 	const { createRide } = useRides();
 	const [isSubmitting, setIsSubmitting] = useState(false);
-
 	const [formData, setFormData] = useState<FormData>({
 		source: "",
 		destination: "",
@@ -50,60 +46,38 @@ export default function CreateRide() {
 		endTime: "",
 		seatsAvailable: "",
 	});
-
 	const [errors, setErrors] = useState<FormErrors>({});
-
 	const validate = (): boolean => {
 		const newErrors: FormErrors = {};
-
-		if (!formData.source.trim()) {
-			newErrors.source = "Source is required";
-		}
-		if (!formData.destination.trim()) {
+		const seats = parseInt(formData.seatsAvailable);
+		if (!formData.source.trim()) newErrors.source = "Source is required";
+		if (!formData.destination.trim())
 			newErrors.destination = "Destination is required";
-		}
-		if (!formData.date) {
-			newErrors.date = "Date is required";
-		}
-		if (!formData.startTime) {
-			newErrors.startTime = "Start time is required";
-		}
-		if (!formData.endTime) {
-			newErrors.endTime = "End time is required";
-		}
+		if (!formData.date) newErrors.date = "Date is required";
+		if (!formData.startTime) newErrors.startTime = "Start time is required";
+		if (!formData.endTime) newErrors.endTime = "End time is required";
 		if (
 			formData.startTime &&
 			formData.endTime &&
 			formData.startTime >= formData.endTime
-		) {
+		)
 			newErrors.endTime = "End time must be after start time";
-		}
-		if (!formData.seatsAvailable) {
+		if (!formData.seatsAvailable)
 			newErrors.seatsAvailable = "Seats available is required";
-		} else if (parseInt(formData.seatsAvailable) < 1) {
+		else if (isNaN(seats) || seats < 1)
 			newErrors.seatsAvailable = "At least 1 seat required";
-		} else if (parseInt(formData.seatsAvailable) > 10) {
-			newErrors.seatsAvailable = "Maximum 10 seats";
-		}
-
+		else if (seats > 10) newErrors.seatsAvailable = "Maximum 10 seats";
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
 	};
-
 	const handleChange = (field: keyof FormData, value: string) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
-		if (errors[field]) {
-			setErrors((prev) => ({ ...prev, [field]: undefined }));
-		}
+		if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
 	};
-
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-
 		if (!validate() || !user) return;
-
 		setIsSubmitting(true);
-
 		try {
 			await createRide({
 				source: formData.source.trim(),
@@ -117,12 +91,10 @@ export default function CreateRide() {
 				creatorEmail: user.email,
 				creatorWhatsApp: user.whatsApp || "",
 			});
-
 			toast({
 				title: "Ride created!",
 				description: "Your ride has been posted successfully.",
 			});
-
 			navigate("/");
 		} catch (error) {
 			console.error("Error creating ride:", error);
@@ -135,7 +107,6 @@ export default function CreateRide() {
 			setIsSubmitting(false);
 		}
 	};
-
 	return (
 		<AppLayout>
 			<div className="max-w-lg mx-auto">
@@ -159,7 +130,6 @@ export default function CreateRide() {
 								placeholder="Select pickup location"
 								error={errors.source}
 							/>
-
 							<LocationSelect
 								id="destination"
 								label="Destination"
@@ -168,7 +138,6 @@ export default function CreateRide() {
 								placeholder="Select drop location"
 								error={errors.destination}
 							/>
-
 							<div className="space-y-2">
 								<Label htmlFor="date">Date</Label>
 								<Input
@@ -182,7 +151,6 @@ export default function CreateRide() {
 									<p className="text-xs text-destructive">{errors.date}</p>
 								)}
 							</div>
-
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-2">
 									<Label htmlFor="startTime">Start Time</Label>
@@ -199,7 +167,6 @@ export default function CreateRide() {
 										</p>
 									)}
 								</div>
-
 								<div className="space-y-2">
 									<Label htmlFor="endTime">End Time</Label>
 									<Input
@@ -214,14 +181,13 @@ export default function CreateRide() {
 									)}
 								</div>
 							</div>
-
 							<div className="space-y-2">
 								<Label htmlFor="seatsAvailable">Seats Available</Label>
 								<Input
 									id="seatsAvailable"
 									type="number"
-									min="1"
-									max="10"
+									min={1}
+									max={10}
 									placeholder="1-10"
 									value={formData.seatsAvailable}
 									onChange={(e) =>
@@ -235,7 +201,6 @@ export default function CreateRide() {
 									</p>
 								)}
 							</div>
-
 							<Button type="submit" className="w-full" disabled={isSubmitting}>
 								{isSubmitting ? (
 									<>

@@ -5,6 +5,7 @@ export interface Ride {
 	date: string;
 	startTime: string;
 	endTime: string;
+	totalSeats: number;
 	seatsAvailable: number;
 	creatorId: string;
 	creatorName: string;
@@ -12,7 +13,6 @@ export interface Ride {
 	creatorWhatsApp: string;
 	createdAt: string;
 }
-
 export interface User {
 	id: string;
 	name: string;

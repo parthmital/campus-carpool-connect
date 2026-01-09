@@ -11,7 +11,6 @@ import React, {
 import { Ride } from "@/types/ride";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
-
 interface SearchFilters {
 	source?: string;
 	destination?: string;
@@ -19,7 +18,6 @@ interface SearchFilters {
 	startTime?: string;
 	endTime?: string;
 }
-
 type RideEditablePatch = Partial<
 	Omit<
 		Ride,
@@ -29,395 +27,178 @@ type RideEditablePatch = Partial<
 		| "creatorEmail"
 		| "creatorWhatsApp"
 		| "createdAt"
+		| "seatsAvailable"
 	>
 >;
-
 interface RidesContextType {
 	rides: Ride[];
 	joinedRides: Set<string>;
 	isLoading: boolean;
 	error: string | null;
 	realtimeStatus: string | null;
-
-	createRide: (ride: Omit<Ride, "id" | "createdAt">) => Promise<void>;
+	createRide: (
+		ride: Omit<Ride, "id" | "createdAt" | "seatsAvailable">
+	) => Promise<void>;
 	joinRide: (rideId: string) => Promise<boolean>;
 	leaveRide: (rideId: string) => Promise<boolean>;
-
 	deleteRide: (rideId: string) => Promise<void>;
 	updateRide: (rideId: string, patch: RideEditablePatch) => Promise<void>;
-
 	getMyRides: () => Ride[];
 	getJoinedRides: () => Ride[];
 	isMyRide: (rideId: string) => boolean;
-
 	getRideById: (id: string) => Ride | undefined;
 	searchRides: (filters: SearchFilters) => Ride[];
 	hasJoinedRide: (rideId: string) => boolean;
 	reload: () => Promise<void>;
 }
-
 const RidesContext = createContext<RidesContextType | undefined>(undefined);
-
-const dbRideToRide = (dbRide: any): Ride => ({
-	id: dbRide.id,
-	source: dbRide.source,
-	destination: dbRide.destination,
-	date: dbRide.date,
-	startTime: dbRide.start_time,
-	endTime: dbRide.end_time,
-	seatsAvailable: dbRide.seats_available,
-	creatorId: dbRide.creator_id,
-	creatorName: dbRide.creator_name,
-	creatorEmail: dbRide.creator_email,
-	creatorWhatsApp: dbRide.creator_whatsapp || "",
-	createdAt: dbRide.created_at,
+const dbRideToRide = (r: any): Ride => ({
+	id: r.id,
+	source: r.source,
+	destination: r.destination,
+	date: r.date,
+	startTime: r.start_time,
+	endTime: r.end_time,
+	seatsAvailable: r.seats_available,
+	creatorId: r.creator_id,
+	creatorName: r.creator_name,
+	creatorEmail: r.creator_email,
+	creatorWhatsApp: r.creator_whatsapp || "",
+	createdAt: r.created_at,
 });
-
-function abortableTimeout(ms: number) {
-	const ac = new AbortController();
-	const t = setTimeout(() => ac.abort(), ms);
-	return { ac, cancel: () => clearTimeout(t) };
-}
-
 export function RidesProvider({ children }: { children: ReactNode }) {
 	const { user } = useAuth();
-
 	const [rides, setRides] = useState<Ride[]>([]);
 	const [joinedRides, setJoinedRides] = useState<Set<string>>(new Set());
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [realtimeStatus, setRealtimeStatus] = useState<string | null>(null);
-
-	const realtimeEnabled = useMemo(() => true, []);
 	const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
 	const loadRides = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
-
-		const { ac, cancel } = abortableTimeout(15000);
-
-		try {
-			const {
-				data,
-				error: qErr,
-				status,
-			} = await supabase
-				.from("rides")
-				.select("*")
-				.order("created_at", { ascending: false })
-				.abortSignal(ac.signal);
-
-			if (qErr) {
-				console.error("Error loading rides:", { status, qErr });
-				setError(qErr.message ?? "Failed to load rides");
-				return;
-			}
-
-			setRides((data ?? []).map(dbRideToRide));
-		} catch (e: any) {
-			console.error("Unexpected error loading rides:", e);
-			setError(e?.message ?? "Unexpected error loading rides");
-		} finally {
-			cancel();
+		const { data, error } = await supabase
+			.from("rides")
+			.select("*")
+			.order("created_at", { ascending: false });
+		if (error) {
+			setError(error.message);
 			setIsLoading(false);
+			return;
 		}
+		setRides((data ?? []).map(dbRideToRide));
+		setIsLoading(false);
 	}, []);
-
 	const loadJoinedRides = useCallback(async () => {
 		if (!user) {
 			setJoinedRides(new Set());
 			return;
 		}
-
-		const { ac, cancel } = abortableTimeout(15000);
-
-		try {
-			const { data, error: qErr } = await supabase
-				.from("ride_participants")
-				.select("ride_id")
-				.eq("user_id", user.id)
-				.abortSignal(ac.signal);
-
-			if (qErr) {
-				console.error("Error loading joined rides:", qErr);
-				return;
-			}
-
-			setJoinedRides(new Set((data ?? []).map((p: any) => p.ride_id)));
-		} catch (e) {
-			console.error("Unexpected error loading joined rides:", e);
-		} finally {
-			cancel();
-		}
+		const { data, error } = await supabase
+			.from("ride_participants")
+			.select("ride_id")
+			.eq("user_id", user.id);
+		if (error) return;
+		setJoinedRides(new Set((data ?? []).map((x) => x.ride_id)));
 	}, [user]);
-
 	const reload = useCallback(async () => {
 		await Promise.all([loadRides(), loadJoinedRides()]);
 	}, [loadRides, loadJoinedRides]);
-
 	useEffect(() => {
 		reload();
 	}, [reload, user?.id]);
-
 	useEffect(() => {
-		if (!realtimeEnabled) return;
-
 		const channel = supabase
-			.channel("rides-changes")
+			.channel("rides-realtime")
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "rides" },
-				(payload) => {
-					console.log("Realtime rides event received:", payload);
-					loadRides();
-				}
+				() => reload()
 			)
-			.subscribe((status, err) => {
-				setRealtimeStatus(status);
-				console.log("Realtime rides status:", status);
-				if (status === "CHANNEL_ERROR" && err)
-					console.error("Realtime error:", err);
-				if (status === "TIMED_OUT") console.warn("Realtime timed out.");
-			});
-
+			.on(
+				"postgres_changes",
+				{ event: "*", schema: "public", table: "ride_participants" },
+				() => reload()
+			)
+			.subscribe((status) => setRealtimeStatus(status));
 		channelRef.current = channel;
-
 		return () => {
-			try {
-				if (channelRef.current) supabase.removeChannel(channelRef.current);
-			} finally {
-				channelRef.current = null;
-			}
+			if (channelRef.current) supabase.removeChannel(channelRef.current);
 		};
-	}, [loadRides, realtimeEnabled]);
-
+	}, [reload]);
 	const createRide = useCallback(
-		async (rideData: Omit<Ride, "id" | "createdAt">) => {
-			if (!user) throw new Error("User must be authenticated to create a ride");
-
-			const { data, error: qErr } = await supabase
-				.from("rides")
-				.insert({
-					source: rideData.source,
-					destination: rideData.destination,
-					date: rideData.date,
-					start_time: rideData.startTime,
-					end_time: rideData.endTime,
-					seats_available: rideData.seatsAvailable,
-					creator_id: rideData.creatorId,
-					creator_name: rideData.creatorName,
-					creator_email: rideData.creatorEmail,
-					creator_whatsapp: rideData.creatorWhatsApp || null,
-				})
-				.select()
-				.single();
-
-			if (qErr) {
-				console.error("Error creating ride:", qErr);
-				throw qErr;
-			}
-
-			if (data) setRides((prev) => [dbRideToRide(data), ...prev]);
-		},
-		[user]
-	);
-
-	const joinRide = useCallback(
-		async (rideId: string): Promise<boolean> => {
-			if (!user) throw new Error("User must be authenticated to join a ride");
-
-			// Call the new Supabase function to handle joining the ride
-			const { data, error: rpcError } = await supabase.rpc(
-				"join_ride_transaction",
-				{ p_ride_id: rideId, p_user_id: user.id }
-			);
-
-			if (rpcError) {
-				console.error("Error calling join_ride_transaction:", rpcError);
-				return false;
-			}
-
-			if (!data) {
-				// The function returned FALSE, meaning join failed (e.g., no seats or already joined)
-				console.log("Join ride transaction returned false.");
-				return false;
-			}
-
-			// If the RPC call was successful and returned true, update local state
-			setJoinedRides((prev) => new Set(prev).add(rideId));
-			setRides((prev) =>
-				prev.map((r) =>
-					r.id === rideId ? { ...r, seatsAvailable: r.seatsAvailable - 1 } : r
-				)
-			);
-
-			console.log(`Successfully joined ride ${rideId}.`);
-			return true;
-		},
-		[user, rides]
-	);
-
-	const leaveRide = useCallback(
-		async (rideId: string): Promise<boolean> => {
-			if (!user) throw new Error("User must be authenticated to leave a ride");
-
-			// Call the new Supabase function to handle leaving the ride
-			const { data, error: rpcError } = await supabase.rpc(
-				"leave_ride_transaction",
-				{ p_ride_id: rideId, p_user_id: user.id }
-			);
-
-			if (rpcError) {
-				console.error("Error calling leave_ride_transaction:", rpcError);
-				return false;
-			}
-
-			if (!data) {
-				// The function returned FALSE, meaning leave failed (e.g., not a participant)
-				console.log("Leave ride transaction returned false.");
-				return false;
-			}
-
-			// If the RPC call was successful and returned true, update local state
-			setJoinedRides((prev) => {
-				const next = new Set(prev);
-				next.delete(rideId);
-				return next;
+		async (ride) => {
+			if (!user) throw new Error("Auth required");
+			const { error } = await supabase.from("rides").insert({
+				source: ride.source,
+				destination: ride.destination,
+				date: ride.date,
+				start_time: ride.startTime,
+				end_time: ride.endTime,
+				seats_available: ride.seatsAvailable,
+				creator_id: user.id,
+				creator_name: ride.creatorName,
+				creator_email: ride.creatorEmail,
+				creator_whatsapp: ride.creatorWhatsApp || null,
 			});
-
-			setRides((prev) =>
-				prev.map((r) =>
-					r.id === rideId ? { ...r, seatsAvailable: r.seatsAvailable + 1 } : r
-				)
-			);
-
-			console.log(`Successfully left ride ${rideId}.`);
+			if (error) throw error;
+			await reload();
+		},
+		[user, reload]
+	);
+	const joinRide = useCallback(
+		async (rideId: string) => {
+			if (!user) throw new Error("Auth required");
+			const { data, error } = await supabase.rpc("join_ride_transaction", {
+				p_ride_id: rideId,
+				p_user_id: user.id,
+			});
+			if (error || !data) return false;
+			await reload();
 			return true;
 		},
-		[user, rides]
+		[user, reload]
 	);
-
+	const leaveRide = useCallback(
+		async (rideId: string) => {
+			if (!user) throw new Error("Auth required");
+			const { data, error } = await supabase.rpc("leave_ride_transaction", {
+				p_ride_id: rideId,
+				p_user_id: user.id,
+			});
+			if (error || !data) return false;
+			await reload();
+			return true;
+		},
+		[user, reload]
+	);
 	const deleteRide = useCallback(
 		async (rideId: string) => {
-			if (!user) throw new Error("User must be authenticated to delete a ride");
-
-			const prev = rides;
-			setRides((curr) => curr.filter((r) => r.id !== rideId));
-
-			const { error: qErr } = await supabase
-				.from("rides")
-				.delete()
-				.eq("id", rideId);
-
-			// Supabase delete should be combined with filters like eq(). [web:118]
-			if (qErr) {
-				setRides(prev);
-				throw qErr;
-			}
-
-			setJoinedRides((curr) => {
-				const next = new Set(curr);
-				next.delete(rideId);
-				return next;
-			});
+			if (!user) throw new Error("Auth required");
+			const { error } = await supabase.from("rides").delete().eq("id", rideId);
+			if (error) throw error;
+			await reload();
 		},
-		[user, rides]
+		[user, reload]
 	);
-
-	interface DbRidePatch {
-		source?: string;
-		destination?: string;
-		date?: string;
-		start_time?: string;
-		end_time?: string;
-		seats_available?: number;
-	}
-
 	const updateRide = useCallback(
 		async (rideId: string, patch: RideEditablePatch) => {
-			if (!user) throw new Error("User must be authenticated to edit a ride");
-
-			const dbPatch: DbRidePatch = {};
-			if (patch.source !== undefined) dbPatch.source = patch.source;
-			if (patch.destination !== undefined)
-				dbPatch.destination = patch.destination;
-			if (patch.date !== undefined) dbPatch.date = patch.date;
-			if (patch.startTime !== undefined) dbPatch.start_time = patch.startTime;
-			if (patch.endTime !== undefined) dbPatch.end_time = patch.endTime;
-			if (patch.seatsAvailable !== undefined)
-				dbPatch.seats_available = patch.seatsAvailable;
-
-			const { data, error } = await supabase
+			if (!user) throw new Error("Auth required");
+			const dbPatch: any = {};
+			if (patch.source) dbPatch.source = patch.source;
+			if (patch.destination) dbPatch.destination = patch.destination;
+			if (patch.date) dbPatch.date = patch.date;
+			if (patch.startTime) dbPatch.start_time = patch.startTime;
+			if (patch.endTime) dbPatch.end_time = patch.endTime;
+			const { error } = await supabase
 				.from("rides")
 				.update(dbPatch)
-				.eq("id", rideId)
-				.select()
-				.single();
-
-			// Supabase update() should be combined with filters like eq(), and select() returns rows. [web:220]
+				.eq("id", rideId);
 			if (error) throw error;
-
-			setRides((prev) =>
-				prev.map((r) => (r.id === rideId ? dbRideToRide(data) : r))
-			);
+			await reload();
 		},
-		[user]
+		[user, reload]
 	);
-
-	const getRideById = useCallback(
-		(id: string) => rides.find((r) => r.id === id),
-		[rides]
-	);
-
-	const hasJoinedRide = useCallback(
-		(rideId: string) => joinedRides.has(rideId),
-		[joinedRides]
-	);
-
-	const getMyRides = useCallback(() => {
-		if (!user) return [];
-		return rides.filter((r) => r.creatorId === user.id);
-	}, [rides, user]);
-
-	const getJoinedRidesList = useCallback(() => {
-		return rides.filter((r) => joinedRides.has(r.id));
-	}, [rides, joinedRides]);
-
-	const isMyRide = useCallback(
-		(rideId: string) => {
-			const r = rides.find((x) => x.id === rideId);
-			return !!user && !!r && r.creatorId === user.id;
-		},
-		[rides, user]
-	);
-
-	const searchRides = useCallback(
-		(filters: SearchFilters): Ride[] => {
-			return rides.filter((ride) => {
-				if (ride.seatsAvailable === 0) return false;
-				if (
-					filters.source &&
-					!ride.source.toLowerCase().includes(filters.source.toLowerCase())
-				)
-					return false;
-				if (
-					filters.destination &&
-					!ride.destination
-						.toLowerCase()
-						.includes(filters.destination.toLowerCase())
-				)
-					return false;
-				if (filters.date && ride.date !== filters.date) return false;
-				if (filters.startTime && ride.startTime < filters.startTime)
-					return false;
-				if (filters.endTime && ride.endTime > filters.endTime) return false;
-				return true;
-			});
-		},
-		[rides]
-	);
-
 	const value: RidesContextType = {
 		rides,
 		joinedRides,
@@ -429,22 +210,39 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 		leaveRide,
 		deleteRide,
 		updateRide,
-		getMyRides,
-		getJoinedRides: getJoinedRidesList,
-		isMyRide,
-		getRideById,
-		searchRides,
-		hasJoinedRide,
+		getMyRides: () =>
+			user ? rides.filter((r) => r.creatorId === user.id) : [],
+		getJoinedRides: () => rides.filter((r) => joinedRides.has(r.id)),
+		isMyRide: (id) =>
+			!!user && rides.some((r) => r.id === id && r.creatorId === user.id),
+		getRideById: (id) => rides.find((r) => r.id === id),
+		searchRides: (filters) =>
+			rides.filter((r) => {
+				if (r.seatsAvailable <= 0) return false;
+				if (
+					filters.source &&
+					!r.source.toLowerCase().includes(filters.source.toLowerCase())
+				)
+					return false;
+				if (
+					filters.destination &&
+					!r.destination
+						.toLowerCase()
+						.includes(filters.destination.toLowerCase())
+				)
+					return false;
+				if (filters.date && r.date !== filters.date) return false;
+				return true;
+			}),
+		hasJoinedRide: (id) => joinedRides.has(id),
 		reload,
 	};
-
 	return (
 		<RidesContext.Provider value={value}>{children}</RidesContext.Provider>
 	);
 }
-
 export function useRides() {
 	const ctx = useContext(RidesContext);
-	if (!ctx) throw new Error("useRides must be used within a RidesProvider");
+	if (!ctx) throw new Error("useRides must be used within RidesProvider");
 	return ctx;
 }
