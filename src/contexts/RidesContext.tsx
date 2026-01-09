@@ -172,6 +172,8 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 				start_time: ride.startTime,
 				end_time: ride.endTime,
 				total_seats: totalSeats,
+				// Backend will decrement/increment this via join/leave RPCs.
+				// At creation time, 0 participants => available == total.
 				seats_available: totalSeats,
 				creator_id: user.id,
 				creator_name: ride.creatorName,
@@ -180,7 +182,6 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			});
 
 			if (error) throw error;
-
 			await reload();
 		},
 		[user, reload]
@@ -242,6 +243,7 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 		async (rideId: string, patch: RideEditablePatch) => {
 			if (!user) throw new Error("Auth required");
 
+			// 1) Update normal columns
 			const dbPatch: any = {};
 			if (patch.source !== undefined) dbPatch.source = patch.source;
 			if (patch.destination !== undefined)
@@ -250,11 +252,26 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			if (patch.startTime !== undefined) dbPatch.start_time = patch.startTime;
 			if (patch.endTime !== undefined) dbPatch.end_time = patch.endTime;
 
-			const { error } = await supabase
-				.from("rides")
-				.update(dbPatch)
-				.eq("id", rideId);
-			if (error) throw error;
+			if (Object.keys(dbPatch).length > 0) {
+				const { error } = await supabase
+					.from("rides")
+					.update(dbPatch)
+					.eq("id", rideId);
+				if (error) throw error;
+			}
+
+			// 2) Update total seats via RPC (recomputes seats_available on backend)
+			if (patch.totalSeats !== undefined) {
+				const { data, error } = await supabase.rpc("update_ride_total_seats", {
+					p_ride_id: rideId,
+					p_total_seats: patch.totalSeats,
+					p_user_id: user.id,
+				});
+
+				if (error || !data) {
+					throw error ?? new Error("Could not update total seats");
+				}
+			}
 
 			await reload();
 		},
@@ -268,17 +285,20 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			isLoading,
 			error,
 			realtimeStatus,
+
 			createRide,
 			joinRide,
 			leaveRide,
 			deleteRide,
 			updateRide,
+
 			getMyRides: () =>
 				user ? rides.filter((r) => r.creatorId === user.id) : [],
 			getJoinedRides: () => rides.filter((r) => joinedRides.has(r.id)),
 			isMyRide: (id) =>
 				!!user && rides.some((r) => r.id === id && r.creatorId === user.id),
 			getRideById: (id) => rides.find((r) => r.id === id),
+
 			searchRides: (filters) =>
 				rides.filter((r) => {
 					if (r.seatsAvailable <= 0) return false;
@@ -286,23 +306,22 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 					if (
 						filters.source &&
 						!r.source.toLowerCase().includes(filters.source.toLowerCase())
-					) {
+					)
 						return false;
-					}
 
 					if (
 						filters.destination &&
 						!r.destination
 							.toLowerCase()
 							.includes(filters.destination.toLowerCase())
-					) {
+					)
 						return false;
-					}
 
 					if (filters.date && r.date !== filters.date) return false;
 
 					return true;
 				}),
+
 			hasJoinedRide: (id) => joinedRides.has(id),
 			reload,
 		}),

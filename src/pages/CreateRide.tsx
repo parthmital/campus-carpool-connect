@@ -24,7 +24,7 @@ interface FormData {
 	date: string;
 	startTime: string;
 	endTime: string;
-	seatsAvailable: string;
+	totalSeats: string;
 }
 
 interface FormErrors {
@@ -33,7 +33,7 @@ interface FormErrors {
 	date?: string;
 	startTime?: string;
 	endTime?: string;
-	seatsAvailable?: string;
+	totalSeats?: string;
 }
 
 export default function CreateRide() {
@@ -49,13 +49,13 @@ export default function CreateRide() {
 		date: "",
 		startTime: "",
 		endTime: "",
-		seatsAvailable: "",
+		totalSeats: "",
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
 	const validate = (): boolean => {
 		const next: FormErrors = {};
-		const seats = parseInt(formData.seatsAvailable, 10);
+		const seats = parseInt(formData.totalSeats, 10);
 
 		if (!formData.source.trim()) next.source = "Source is required";
 		if (!formData.destination.trim())
@@ -72,10 +72,10 @@ export default function CreateRide() {
 			next.endTime = "End time must be after start time";
 		}
 
-		if (!formData.seatsAvailable) next.seatsAvailable = "Seats is required";
+		if (!formData.totalSeats) next.totalSeats = "Total seats is required";
 		else if (Number.isNaN(seats) || seats < 1)
-			next.seatsAvailable = "At least 1 seat required";
-		else if (seats > 10) next.seatsAvailable = "Maximum 10 seats";
+			next.totalSeats = "At least 1 seat required";
+		else if (seats > 10) next.totalSeats = "Maximum 10 seats";
 
 		setErrors(next);
 		return Object.keys(next).length === 0;
@@ -101,7 +101,7 @@ export default function CreateRide() {
 
 		if (!validate()) return;
 
-		const seats = parseInt(formData.seatsAvailable, 10);
+		const totalSeats = parseInt(formData.totalSeats, 10);
 
 		setIsSubmitting(true);
 		try {
@@ -111,7 +111,7 @@ export default function CreateRide() {
 				date: formData.date,
 				startTime: formData.startTime,
 				endTime: formData.endTime,
-				totalSeats: seats,
+				totalSeats,
 				creatorName: user.name,
 				creatorEmail: user.email,
 				creatorWhatsApp: user.whatsApp || "",
@@ -230,24 +230,20 @@ export default function CreateRide() {
 								</div>
 
 								<div className="space-y-2">
-									<Label htmlFor="seatsAvailable">Seats Available</Label>
+									<Label htmlFor="totalSeats">Total Seats</Label>
 									<Input
-										id="seatsAvailable"
+										id="totalSeats"
 										type="number"
 										min={1}
 										max={10}
 										placeholder="1-10"
-										value={formData.seatsAvailable}
-										onChange={(e) =>
-											handleChange("seatsAvailable", e.target.value)
-										}
-										className={
-											errors.seatsAvailable ? "border-destructive" : ""
-										}
+										value={formData.totalSeats}
+										onChange={(e) => handleChange("totalSeats", e.target.value)}
+										className={errors.totalSeats ? "border-destructive" : ""}
 									/>
-									{errors.seatsAvailable && (
+									{errors.totalSeats && (
 										<p className="text-xs text-destructive">
-											{errors.seatsAvailable}
+											{errors.totalSeats}
 										</p>
 									)}
 								</div>

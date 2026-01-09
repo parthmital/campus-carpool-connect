@@ -24,7 +24,7 @@ interface FormErrors {
 	date?: string;
 	startTime?: string;
 	endTime?: string;
-	seatsAvailable?: string;
+	totalSeats?: string;
 }
 
 export default function EditRide() {
@@ -51,7 +51,7 @@ export default function EditRide() {
 		date: "",
 		startTime: "",
 		endTime: "",
-		seatsAvailable: "",
+		totalSeats: "",
 	});
 
 	useEffect(() => {
@@ -63,13 +63,13 @@ export default function EditRide() {
 			date: ride.date,
 			startTime: ride.startTime,
 			endTime: ride.endTime,
-			seatsAvailable: String(ride.seatsAvailable),
+			totalSeats: String(ride.totalSeats),
 		});
 	}, [ride]);
 
 	const validate = (): boolean => {
 		const next: FormErrors = {};
-		const seats = parseInt(form.seatsAvailable, 10);
+		const seats = parseInt(form.totalSeats, 10);
 
 		if (!form.source.trim()) next.source = "Source is required";
 		if (!form.destination.trim()) next.destination = "Destination is required";
@@ -81,11 +81,10 @@ export default function EditRide() {
 			next.endTime = "End time must be after start time";
 		}
 
-		if (!form.seatsAvailable)
-			next.seatsAvailable = "Seats available is required";
+		if (!form.totalSeats) next.totalSeats = "Total seats is required";
 		else if (Number.isNaN(seats) || seats < 1)
-			next.seatsAvailable = "At least 1 seat required";
-		else if (seats > 10) next.seatsAvailable = "Maximum 10 seats";
+			next.totalSeats = "At least 1 seat required";
+		else if (seats > 10) next.totalSeats = "Maximum 10 seats";
 
 		setErrors(next);
 		return Object.keys(next).length === 0;
@@ -142,8 +141,8 @@ export default function EditRide() {
 				date: form.date,
 				startTime: form.startTime,
 				endTime: form.endTime,
-				seatsAvailable: parseInt(form.seatsAvailable, 10),
-			});
+				totalSeats: parseInt(form.totalSeats, 10),
+			} as any);
 
 			toast({
 				title: "Ride updated",
@@ -239,19 +238,19 @@ export default function EditRide() {
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="seatsAvailable">Seats Available</Label>
+								<Label htmlFor="totalSeats">Total Seats</Label>
 								<Input
-									id="seatsAvailable"
+									id="totalSeats"
 									type="number"
 									min={1}
 									max={10}
-									value={form.seatsAvailable}
-									onChange={(e) => setField("seatsAvailable", e.target.value)}
-									className={errors.seatsAvailable ? "border-destructive" : ""}
+									value={form.totalSeats}
+									onChange={(e) => setField("totalSeats", e.target.value)}
+									className={errors.totalSeats ? "border-destructive" : ""}
 								/>
-								{errors.seatsAvailable && (
+								{errors.totalSeats && (
 									<p className="text-xs text-destructive">
-										{errors.seatsAvailable}
+										{errors.totalSeats}
 									</p>
 								)}
 							</div>

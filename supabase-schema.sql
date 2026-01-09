@@ -1,5 +1,11 @@
+-- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+
+
+-- =========================
+-- User profiles
+-- =========================
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
@@ -27,6 +33,11 @@ BEFORE UPDATE ON public.user_profiles
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
+
+
+-- =========================
+-- Rides + participants
+-- =========================
 CREATE TABLE IF NOT EXISTS public.rides (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   source TEXT NOT NULL,
@@ -57,10 +68,20 @@ CREATE INDEX IF NOT EXISTS idx_rides_creator ON public.rides(creator_id);
 CREATE INDEX IF NOT EXISTS idx_participants_ride ON public.ride_participants(ride_id);
 CREATE INDEX IF NOT EXISTS idx_participants_user ON public.ride_participants(user_id);
 
+
+
+-- =========================
+-- RLS enable
+-- =========================
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ride_participants ENABLE ROW LEVEL SECURITY;
 
+
+
+-- =========================
+-- Drop old policies (safe re-run)
+-- =========================
 DROP POLICY IF EXISTS profiles_read_all ON public.user_profiles;
 DROP POLICY IF EXISTS profiles_insert_self ON public.user_profiles;
 DROP POLICY IF EXISTS profiles_update_self ON public.user_profiles;
@@ -74,6 +95,11 @@ DROP POLICY IF EXISTS participants_read_all ON public.ride_participants;
 DROP POLICY IF EXISTS participants_insert_self ON public.ride_participants;
 DROP POLICY IF EXISTS participants_delete_self ON public.ride_participants;
 
+
+
+-- =========================
+-- RLS policies
+-- =========================
 CREATE POLICY profiles_read_all
 ON public.user_profiles
 FOR SELECT
@@ -124,9 +150,21 @@ ON public.ride_participants
 FOR DELETE
 USING (auth.uid() = user_id);
 
+
+
+-- =========================
+-- Remove legacy "auto join creator" trigger/function
+-- =========================
 DROP TRIGGER IF EXISTS trg_auto_join_creator ON public.rides;
 DROP FUNCTION IF EXISTS public.auto_join_creator();
 
+
+
+-- =========================
+-- RPC: join ride (transaction)
+-- - Prevent joining own ride
+-- - Decrement seats_available
+-- =========================
 CREATE OR REPLACE FUNCTION public.join_ride_transaction(
   p_ride_id UUID,
   p_user_id UUID
@@ -176,6 +214,13 @@ BEGIN
 END;
 $$;
 
+
+
+-- =========================
+-- RPC: leave ride (transaction)
+-- - Prevent leaving own ride
+-- - Increment seats_available
+-- =========================
 CREATE OR REPLACE FUNCTION public.leave_ride_transaction(
   p_ride_id UUID,
   p_user_id UUID
@@ -213,6 +258,67 @@ BEGIN
 
   UPDATE public.rides
   SET seats_available = seats_available + 1
+  WHERE id = p_ride_id;
+
+  RETURN TRUE;
+END;
+$$;
+
+
+
+-- =========================
+-- RPC: update total seats (backend-owned seats_available)
+-- - Only creator can change capacity
+-- - seats_available recomputed as total_seats - participant_count
+-- - Reject if total seats < existing participants
+-- =========================
+CREATE OR REPLACE FUNCTION public.update_ride_total_seats(
+  p_ride_id UUID,
+  p_total_seats INTEGER,
+  p_user_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  participants_count INTEGER;
+  ride_creator UUID;
+BEGIN
+  IF p_total_seats IS NULL OR p_total_seats <= 0 THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Lock ride row and verify it exists
+  SELECT creator_id
+  INTO ride_creator
+  FROM public.rides
+  WHERE id = p_ride_id
+  FOR UPDATE;
+
+  IF ride_creator IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Only creator can update capacity
+  IF ride_creator <> p_user_id THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT COUNT(*)
+  INTO participants_count
+  FROM public.ride_participants
+  WHERE ride_id = p_ride_id;
+
+  IF p_total_seats < participants_count THEN
+    RETURN FALSE;
+  END IF;
+
+  UPDATE public.rides
+  SET
+    total_seats = p_total_seats,
+    seats_available = p_total_seats - participants_count
   WHERE id = p_ride_id;
 
   RETURN TRUE;
