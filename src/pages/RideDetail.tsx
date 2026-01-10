@@ -198,7 +198,7 @@ export default function RideDetail() {
 
 				<Card className="animate-fade-in">
 					<CardHeader className="pb-4">
-						<div className="flex items-start justify-between gap-4">
+						<div className="flex items-center justify-between gap-4">
 							<CardTitle className="text-lg">Ride Details</CardTitle>
 
 							<div className="flex items-center gap-2">
