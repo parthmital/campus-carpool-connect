@@ -174,12 +174,12 @@ export default function RideDetail() {
 		}
 
 		const message = encodeURIComponent(
-			`Hi! I joined your ride from ${ride.source} to ${ride.destination} on ${formattedDate}.`,
+			`Hi! I joined your ride from ${ride.source} to ${ride.destination} on ${formattedDate}.`
 		);
 
 		window.open(
 			`https://wa.me/${ride.creatorWhatsApp}?text=${message}`,
-			"_blank",
+			"_blank"
 		);
 	};
 
@@ -198,7 +198,8 @@ export default function RideDetail() {
 
 				<Card className="animate-fade-in">
 					<CardHeader className="pb-4">
-						<div className="flex items-center justify-between gap-4">
+						{/* CHANGED: stack title + actions on mobile; one row on sm+ */}
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<CardTitle className="text-lg">Ride Details</CardTitle>
 
 							<div className="flex items-center gap-2">
@@ -282,7 +283,7 @@ export default function RideDetail() {
 						<Separator />
 
 						<div className="flex items-start gap-3">
-							<UserIcon className="mt-0.5 h-5 w-5 text-muted-foreground" />
+							<UserIcon className="mt-0.5 h--5 w-5 text-muted-foreground" />
 							<div>
 								<p className="text-xs uppercase tracking-wide text-muted-foreground">
 									Posted by
@@ -327,8 +328,8 @@ export default function RideDetail() {
 											? "Leaving..."
 											: "Joining..."
 										: joined
-											? "Leave Ride"
-											: "Join This Ride"}
+										? "Leave Ride"
+										: "Join This Ride"}
 								</Button>
 							)}
 						</div>
