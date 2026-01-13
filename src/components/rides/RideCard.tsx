@@ -26,10 +26,10 @@ export function RideCard({ ride }: RideCardProps) {
 	const formattedDate = format(new Date(ride.date), "EEE, MMM d");
 	const timeWindow = `${ride.startTime} - ${ride.endTime}`;
 	const seatsText =
-		ride.seatsAvailable === 1 ? "1 seat" : `${ride.seatsAvailable} seats`;
+		ride.availableSeats === 1 ? "1 seat" : `${ride.availableSeats} seats`;
 
 	const isCreator = !!user && ride.creatorId === user.id;
-	const canJoin = !!user && !joined && !isCreator && ride.seatsAvailable > 0;
+	const canJoin = !!user && !joined && !isCreator && ride.availableSeats > 0;
 
 	const handleJoinLeave = async () => {
 		if (!user) {

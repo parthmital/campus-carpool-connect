@@ -30,11 +30,11 @@ type RideEditablePatch = Partial<
 		| "creatorEmail"
 		| "creatorWhatsApp"
 		| "createdAt"
-		| "seatsAvailable"
+		| "availableSeats"
 	>
 >;
 
-type CreateRideInput = Omit<Ride, "id" | "createdAt" | "seatsAvailable"> & {
+type CreateRideInput = Omit<Ride, "id" | "createdAt" | "availableSeats"> & {
 	totalSeats: number;
 };
 
@@ -44,20 +44,17 @@ interface RidesContextType {
 	isLoading: boolean;
 	error: string | null;
 	realtimeStatus: string | null;
-
 	createRide: (ride: CreateRideInput) => Promise<void>;
 	joinRide: (rideId: string) => Promise<boolean>;
 	leaveRide: (rideId: string) => Promise<boolean>;
 	deleteRide: (rideId: string) => Promise<void>;
 	updateRide: (rideId: string, patch: RideEditablePatch) => Promise<void>;
-
 	getMyRides: () => Ride[];
 	getJoinedRides: () => Ride[];
 	isMyRide: (rideId: string) => boolean;
 	getRideById: (id: string) => Ride | undefined;
 	searchRides: (filters: SearchFilters) => Ride[];
 	hasJoinedRide: (rideId: string) => boolean;
-
 	reload: () => Promise<void>;
 }
 
@@ -71,7 +68,7 @@ const dbRideToRide = (r: any): Ride => ({
 	startTime: r.start_time,
 	endTime: r.end_time,
 	totalSeats: r.total_seats,
-	seatsAvailable: r.seats_available,
+	availableSeats: r.available_seats ?? r.seats_available ?? 0,
 	creatorId: r.creator_id,
 	creatorName: r.creator_name,
 	creatorEmail: r.creator_email,
@@ -81,21 +78,18 @@ const dbRideToRide = (r: any): Ride => ({
 
 export function RidesProvider({ children }: { children: ReactNode }) {
 	const { user } = useAuth();
-
 	const [rides, setRides] = useState<Ride[]>([]);
 	const [joinedRides, setJoinedRides] = useState<Set<string>>(new Set());
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<string | null>(null);
 	const [realtimeStatus, setRealtimeStatus] = useState<string | null>(null);
-
 	const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
 	const loadRides = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
-
 		const { data, error } = await supabase
-			.from("rides")
+			.from("rides_with_slots")
 			.select("*")
 			.order("created_at", { ascending: false });
 
@@ -114,14 +108,12 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			setJoinedRides(new Set());
 			return;
 		}
-
 		const { data, error } = await supabase
 			.from("ride_participants")
 			.select("ride_id")
 			.eq("user_id", user.id);
 
 		if (error) return;
-
 		setJoinedRides(new Set((data ?? []).map((x: any) => x.ride_id as string)));
 	}, [user]);
 
@@ -139,17 +131,16 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "rides" },
-				() => void reload(),
+				() => void reload()
 			)
 			.on(
 				"postgres_changes",
 				{ event: "*", schema: "public", table: "ride_participants" },
-				() => void reload(),
+				() => void reload()
 			)
 			.subscribe((status) => setRealtimeStatus(status));
 
 		channelRef.current = channel;
-
 		return () => {
 			if (channelRef.current) supabase.removeChannel(channelRef.current);
 			channelRef.current = null;
@@ -159,11 +150,8 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 	const createRide = useCallback(
 		async (ride: CreateRideInput) => {
 			if (!user) throw new Error("Auth required");
-
 			const totalSeats =
-				typeof ride.totalSeats === "number" && ride.totalSeats > 0
-					? ride.totalSeats
-					: 1;
+				Number(ride.totalSeats) > 0 ? Number(ride.totalSeats) : 1;
 
 			const { error } = await supabase.from("rides").insert({
 				source: ride.source,
@@ -172,25 +160,18 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 				start_time: ride.startTime,
 				end_time: ride.endTime,
 				total_seats: totalSeats,
-				// Backend will decrement/increment this via join/leave RPCs.
-				// At creation time, 0 participants => available == total.
-				seats_available: totalSeats,
 				creator_id: user.id,
-				creator_name: ride.creatorName,
-				creator_email: ride.creatorEmail,
-				creator_whatsapp: ride.creatorWhatsApp || null,
 			});
 
 			if (error) throw error;
 			await reload();
 		},
-		[user, reload],
+		[user, reload]
 	);
 
 	const joinRide = useCallback(
 		async (rideId: string) => {
 			if (!user) throw new Error("Auth required");
-
 			const ride = rides.find((r) => r.id === rideId);
 			if (ride && ride.creatorId === user.id) return false;
 
@@ -200,17 +181,15 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			});
 
 			if (error || !data) return false;
-
 			await reload();
 			return true;
 		},
-		[user, rides, reload],
+		[user, rides, reload]
 	);
 
 	const leaveRide = useCallback(
 		async (rideId: string) => {
 			if (!user) throw new Error("Auth required");
-
 			const ride = rides.find((r) => r.id === rideId);
 			if (ride && ride.creatorId === user.id) return false;
 
@@ -220,30 +199,25 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			});
 
 			if (error || !data) return false;
-
 			await reload();
 			return true;
 		},
-		[user, rides, reload],
+		[user, rides, reload]
 	);
 
 	const deleteRide = useCallback(
 		async (rideId: string) => {
 			if (!user) throw new Error("Auth required");
-
 			const { error } = await supabase.from("rides").delete().eq("id", rideId);
 			if (error) throw error;
-
 			await reload();
 		},
-		[user, reload],
+		[user, reload]
 	);
 
 	const updateRide = useCallback(
 		async (rideId: string, patch: RideEditablePatch) => {
 			if (!user) throw new Error("Auth required");
-
-			// 1) Update normal columns
 			const dbPatch: any = {};
 			if (patch.source !== undefined) dbPatch.source = patch.source;
 			if (patch.destination !== undefined)
@@ -260,22 +234,17 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 				if (error) throw error;
 			}
 
-			// 2) Update total seats via RPC (recomputes seats_available on backend)
 			if (patch.totalSeats !== undefined) {
 				const { data, error } = await supabase.rpc("update_ride_total_seats", {
 					p_ride_id: rideId,
 					p_total_seats: patch.totalSeats,
 					p_user_id: user.id,
 				});
-
-				if (error || !data) {
-					throw error ?? new Error("Could not update total seats");
-				}
+				if (error || !data) throw error ?? new Error("Could not update seats");
 			}
-
 			await reload();
 		},
-		[user, reload],
+		[user, reload]
 	);
 
 	const value: RidesContextType = useMemo(
@@ -285,30 +254,25 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			isLoading,
 			error,
 			realtimeStatus,
-
 			createRide,
 			joinRide,
 			leaveRide,
 			deleteRide,
 			updateRide,
-
 			getMyRides: () =>
 				user ? rides.filter((r) => r.creatorId === user.id) : [],
 			getJoinedRides: () => rides.filter((r) => joinedRides.has(r.id)),
 			isMyRide: (id) =>
 				!!user && rides.some((r) => r.id === id && r.creatorId === user.id),
 			getRideById: (id) => rides.find((r) => r.id === id),
-
 			searchRides: (filters) =>
 				rides.filter((r) => {
-					if (r.seatsAvailable <= 0) return false;
-
+					if (r.availableSeats <= 0) return false;
 					if (
 						filters.source &&
 						!r.source.toLowerCase().includes(filters.source.toLowerCase())
 					)
 						return false;
-
 					if (
 						filters.destination &&
 						!r.destination
@@ -316,12 +280,9 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 							.includes(filters.destination.toLowerCase())
 					)
 						return false;
-
 					if (filters.date && r.date !== filters.date) return false;
-
 					return true;
 				}),
-
 			hasJoinedRide: (id) => joinedRides.has(id),
 			reload,
 		}),
@@ -338,7 +299,7 @@ export function RidesProvider({ children }: { children: ReactNode }) {
 			updateRide,
 			reload,
 			user,
-		],
+		]
 	);
 
 	return (

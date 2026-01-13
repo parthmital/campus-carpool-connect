@@ -78,7 +78,7 @@ export default function JoinedRides() {
 
 									<CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 										<div className="text-sm text-muted-foreground">
-											{r.date} • {r.startTime}–{r.endTime} • {r.seatsAvailable}{" "}
+											{r.date} • {r.startTime}–{r.endTime} • {r.availableSeats}{" "}
 											seats
 										</div>
 

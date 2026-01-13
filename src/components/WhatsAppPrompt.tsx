@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Phone } from "lucide-react";
+import { Phone, Loader2 } from "lucide-react";
 
 interface WhatsAppPromptProps {
 	open: boolean;
@@ -19,25 +19,42 @@ interface WhatsAppPromptProps {
 export function WhatsAppPrompt({ open, onSubmit }: WhatsAppPromptProps) {
 	const [phone, setPhone] = useState("");
 	const [error, setError] = useState("");
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const validatePhone = (value: string) => {
-		// Basic validation: digits only, 10-15 characters
 		const cleaned = value.replace(/\D/g, "");
 		return cleaned.length >= 10 && cleaned.length <= 15;
 	};
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!phone.trim()) {
-			setError("WhatsApp number is required");
-			return;
-		}
+
 		if (!validatePhone(phone)) {
-			setError("Please enter a valid phone number (10-15 digits)");
+			setError("Please enter a valid WhatsApp number (10-15 digits)");
 			return;
 		}
-		onSubmit(phone.replace(/\D/g, ""));
+
+		setIsSubmitting(true);
+		setError("");
+
+		try {
+			const cleanedPhone = phone.replace(/\D/g, "");
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			onSubmit(cleanedPhone);
+		} catch (err) {
+			setError("Something went wrong. Please try again.");
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
+
+	useEffect(() => {
+		if (!open) {
+			setPhone("");
+			setError("");
+			setIsSubmitting(false);
+		}
+	}, [open]);
 
 	return (
 		<Dialog open={open}>
@@ -48,34 +65,45 @@ export function WhatsAppPrompt({ open, onSubmit }: WhatsAppPromptProps) {
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Phone className="h-5 w-5 text-primary" />
-						WhatsApp Number Required
+						WhatsApp Number
 					</DialogTitle>
 					<DialogDescription>
 						Enter your WhatsApp number to coordinate rides. This will only be
 						shared with riders who join your rides.
 					</DialogDescription>
 				</DialogHeader>
+
 				<form onSubmit={handleSubmit} className="space-y-4">
 					<div className="space-y-2">
 						<Label htmlFor="whatsapp">WhatsApp Number</Label>
 						<Input
 							id="whatsapp"
 							type="tel"
-							placeholder="e.g., 9876543210"
+							placeholder="e.g., 919876543210"
 							value={phone}
 							onChange={(e) => {
 								setPhone(e.target.value);
-								setError("");
+								if (error) setError("");
 							}}
 							className={error ? "border-destructive" : ""}
+							disabled={isSubmitting}
 						/>
 						{error && <p className="text-xs text-destructive">{error}</p>}
-						<p className="text-xs text-muted-foreground">
-							Enter your number with country code (e.g., 91 for India)
-						</p>
 					</div>
-					<Button type="submit" className="w-full">
-						Save & Continue
+
+					<Button
+						type="submit"
+						className="w-full"
+						disabled={isSubmitting || !phone}
+					>
+						{isSubmitting ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Saving...
+							</>
+						) : (
+							"Confirm Number"
+						)}
 					</Button>
 				</form>
 			</DialogContent>

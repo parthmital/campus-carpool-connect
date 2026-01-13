@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SearchForm } from "@/components/rides/SearchForm";
 import { RideCard } from "@/components/rides/RideCard";
@@ -15,7 +14,7 @@ interface SearchFilters {
 }
 
 export default function Home() {
-	const { rides, isLoading } = useRides();
+	const { isLoading, searchRides } = useRides();
 
 	const [filters, setFilters] = useState<SearchFilters>({
 		source: "",
@@ -25,35 +24,7 @@ export default function Home() {
 		endTime: "",
 	});
 
-	const filteredRides = useMemo(() => {
-		return rides.filter((ride) => {
-			if (ride.seatsAvailable === 0) return false;
-
-			if (
-				filters.source &&
-				!ride.source.toLowerCase().includes(filters.source.toLowerCase())
-			) {
-				return false;
-			}
-
-			if (
-				filters.destination &&
-				!ride.destination
-					.toLowerCase()
-					.includes(filters.destination.toLowerCase())
-			) {
-				return false;
-			}
-
-			if (filters.date && ride.date !== filters.date) return false;
-
-			if (filters.startTime && ride.startTime < filters.startTime) return false;
-
-			if (filters.endTime && ride.endTime > filters.endTime) return false;
-
-			return true;
-		});
-	}, [rides, filters]);
+	const filteredRides = searchRides(filters);
 
 	return (
 		<AppLayout>
@@ -92,7 +63,7 @@ export default function Home() {
 							</p>
 						</div>
 					) : (
-						<div className="space-y-3">
+						<div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
 							{filteredRides.map((ride) => (
 								<RideCard key={ride.id} ride={ride} />
 							))}

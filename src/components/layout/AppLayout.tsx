@@ -20,9 +20,6 @@ export function AppLayout({ children }: AppLayoutProps) {
 		);
 	}
 
-	if (!isAuthenticated) {
-		return <Navigate to="/login" replace />;
-	}
 
 	return (
 		<div className="min-h-screen bg-background">

@@ -43,6 +43,14 @@ export default function EditRide() {
 		[ride, user?.id],
 	);
 
+	// If the user is not authenticated, redirect to login
+	// This check needs to be before accessing `user` to avoid potential errors
+	// if this page is accessed by an unauthenticated user.
+	if (!user) {
+		navigate("/login");
+		return null;
+	}
+
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errors, setErrors] = useState<FormErrors>({});
 	const [form, setForm] = useState({

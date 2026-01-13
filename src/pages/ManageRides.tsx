@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,12 @@ export default function ManageRides() {
 	const { getMyRides, deleteRide, isLoading } = useRides();
 
 	const myRides = getMyRides();
+
+	useEffect(() => {
+		if (!user) {
+			navigate("/login");
+		}
+	}, [user, navigate]);
 
 	const handleDelete = async (rideId: string) => {
 		const ok = window.confirm("Delete this ride? This cannot be undone.");
@@ -46,16 +53,7 @@ export default function ManageRides() {
 					</Button>
 				</div>
 
-				{!user ? (
-					<Card>
-						<CardContent className="py-8 text-center">
-							<p className="text-muted-foreground">Please log in first.</p>
-							<Button className="mt-3" onClick={() => navigate("/login")}>
-								Go to Login
-							</Button>
-						</CardContent>
-					</Card>
-				) : isLoading ? (
+				{isLoading ? (
 					<Card>
 						<CardContent className="py-8 text-center">
 							<p className="text-muted-foreground">Loading...</p>
@@ -82,7 +80,7 @@ export default function ManageRides() {
 
 								<CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 									<div className="text-sm text-muted-foreground">
-										{r.date} • {r.startTime}–{r.endTime} • {r.seatsAvailable}{" "}
+										{r.date} • {r.startTime}–{r.endTime} • {r.availableSeats}{" "}
 										seats
 									</div>
 

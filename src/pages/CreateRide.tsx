@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -53,6 +53,12 @@ export default function CreateRide() {
 	});
 	const [errors, setErrors] = useState<FormErrors>({});
 
+	useEffect(() => {
+		if (!user) {
+			navigate("/login");
+		}
+	}, [user, navigate]);
+
 	const validate = (): boolean => {
 		const next: FormErrors = {};
 		const seats = parseInt(formData.totalSeats, 10);
@@ -89,15 +95,7 @@ export default function CreateRide() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!user) {
-			toast({
-				title: "Login required",
-				description: "Please log in to create a ride.",
-				variant: "destructive",
-			});
-			navigate("/login");
-			return;
-		}
+		if (!user) return;
 
 		if (!validate()) return;
 
@@ -152,14 +150,7 @@ export default function CreateRide() {
 					</CardHeader>
 
 					<CardContent>
-						{!user ? (
-							<div className="space-y-3">
-								<p className="text-sm text-muted-foreground">
-									Please log in to create a ride.
-								</p>
-								<Button onClick={() => navigate("/login")}>Go to Login</Button>
-							</div>
-						) : (
+						{user && (
 							<form onSubmit={handleSubmit} className="space-y-4">
 								<LocationSelect
 									id="source"

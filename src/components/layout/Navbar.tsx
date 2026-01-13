@@ -70,11 +70,20 @@ export function Navbar() {
 					</Link>
 
 					<div className="flex items-center gap-2">
-						<Button asChild variant="default" size="sm" className="gap-1.5">
-							<Link to="/create">
-								<Plus className="h-4 w-4" />
-								<span className="hidden sm:inline">Create Ride</span>
-							</Link>
+						<Button
+							variant="default"
+							size="sm"
+							className="gap-1.5"
+							onClick={() => {
+								if (!user) {
+									navigate("/login");
+								} else {
+									navigate("/create");
+								}
+							}}
+						>
+							<Plus className="h-4 w-4" />
+							<span className="hidden sm:inline">Create Ride</span>
 						</Button>
 
 						<DropdownMenu>

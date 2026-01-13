@@ -28,11 +28,7 @@ export interface Database {
 					start_time: string;
 					end_time: string;
 					total_seats: number;
-					seats_available: number;
 					creator_id: string;
-					creator_name: string;
-					creator_email: string;
-					creator_whatsapp: string | null;
 					created_at: string;
 				};
 				Insert: {
@@ -43,11 +39,7 @@ export interface Database {
 					start_time: string;
 					end_time: string;
 					total_seats: number;
-					seats_available: number;
 					creator_id: string;
-					creator_name: string;
-					creator_email: string;
-					creator_whatsapp?: string | null;
 					created_at?: string;
 				};
 				Update: {
@@ -58,30 +50,23 @@ export interface Database {
 					start_time?: string;
 					end_time?: string;
 					total_seats?: number;
-					seats_available?: number;
 					creator_id?: string;
-					creator_name?: string;
-					creator_email?: string;
-					creator_whatsapp?: string | null;
 					created_at?: string;
 				};
 			};
 
 			ride_participants: {
 				Row: {
-					id: string;
 					ride_id: string;
 					user_id: string;
 					joined_at: string;
 				};
 				Insert: {
-					id?: string;
 					ride_id: string;
 					user_id: string;
 					joined_at?: string;
 				};
 				Update: {
-					id?: string;
 					ride_id?: string;
 					user_id?: string;
 					joined_at?: string;
@@ -93,7 +78,6 @@ export interface Database {
 					id: string;
 					email: string;
 					name: string;
-					photo_url: string | null;
 					whatsapp: string | null;
 					created_at: string;
 					updated_at: string;
@@ -102,7 +86,6 @@ export interface Database {
 					id: string;
 					email: string;
 					name: string;
-					photo_url?: string | null;
 					whatsapp?: string | null;
 					created_at?: string;
 					updated_at?: string;
@@ -111,10 +94,28 @@ export interface Database {
 					id?: string;
 					email?: string;
 					name?: string;
-					photo_url?: string | null;
 					whatsapp?: string | null;
 					created_at?: string;
 					updated_at?: string;
+				};
+			};
+		};
+		Views: {
+			rides_with_slots: {
+				Row: {
+					id: string;
+					source: string;
+					destination: string;
+					date: string;
+					start_time: string;
+					end_time: string;
+					total_seats: number;
+					creator_id: string;
+					created_at: string;
+					creator_name: string;
+					creator_whatsapp: string | null;
+					creator_email: string;
+					available_seats: number;
 				};
 			};
 		};
