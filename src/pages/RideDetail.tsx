@@ -171,7 +171,7 @@ export default function RideDetail() {
 							</div>
 							<div>
 								<p className="text-sm font-medium">{ride.creatorName}</p>
-								<p className="text-xs text-muted-foreground">Driver</p>
+								<p className="text-xs text-muted-foreground">Ride Creator</p>
 							</div>
 						</div>
 
@@ -209,10 +209,10 @@ export default function RideDetail() {
 						<CardContent className="pt-6 space-y-4">
 							<div className="flex items-center gap-2 text-green-700 font-semibold">
 								<MessageCircle className="h-5 w-5" />
-								Contact Driver
+								Contact Ride Creator
 							</div>
 							<p className="text-sm text-green-600">
-								You are part of this ride. Message the driver to coordinate.
+								You are part of this ride. Message the ride creator to coordinate.
 							</p>
 							<Button
 								onClick={openWhatsApp}
